@@ -1,8 +1,92 @@
-
-
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#define MX_SZ 100
+#define CM_SZ 50
 int execute_in_parallel(char *infile, char *outfile)
 {
-
+	//! path handling
+	char* paths = getenv("CS330_PATH");
+	// printf("%s\n",paths);
+	if(!paths){
+		exit(-1);
+	}
+	// path handling ends
+	//! get commands
+	FILE* fp = fopen(infile, "r");
+	if(!fp){
+		perror("error opening input file");
+		exit(-1);
+	}
+	char *cmds[CM_SZ];
+	int ncmd =0;
+	char str[MX_SZ];
+	while(fgets(str, MX_SZ, fp)){
+		int len = strlen(str);
+		str[len-1] = '\0';
+		cmds[ncmd] = (char*)malloc(len*sizeof(char));
+		strcpy(cmds[ncmd], str);
+		ncmd++;
+	}
+	//! end scanning commands
+	int outfd = open(outfile, O_WRONLY | O_CREAT);
+	pid_t cpid, pid = getpid();
+	if(outfd <0){
+		perror("can't create or open output file");
+		exit(-1);
+	}
+	int pfd[ncmd][2];
+	for(int i=0;i<ncmd && (pid == getpid());i++){
+		char*cmd = cmds[i];
+		// printf("%s\n",cmd);
+		if(pipe(pfd[i]) < 0){
+			perror("pipe can't be processed");
+			exit(-1);
+		}
+		// create argv[] for execv
+		char*  argv[(int)strlen(cmd) +1];
+        int narg =0;
+        char *arg = strtok(cmd," ");
+        while(arg!=NULL){
+                argv[narg] = (char*)malloc(((int)strlen(arg) +1)*sizeof(char));
+                argv[narg] = arg;
+                arg = strtok(NULL," ");
+                narg++;
+        }
+        argv[narg] = NULL;
+		// argv[] done
+		char*token = strtok(paths,":");
+		while(token!= NULL){
+			char tok[(int)strlen(token)+1];
+			strcpy(tok,token);
+			strcat(tok,"/");
+			cpid = fork();
+			if(cpid <0 ){
+				perror("Fork can't be processed");
+				exit(-1);
+			}
+			if(!cpid){
+				close(1);
+				if(dup2(pfd[1], 1) <0){
+					perror("can't process dup2");
+					exit(-1);
+				}
+				strcat(tok,argv[0]);
+				if(execv(tok,argv)){
+						// perror("execv can't be processed");
+						exit(-1);
+				}
+				exit(-1);
+			}
+			token = strtok(NULL,":");
+		}
+	}
+	return 0;
 }
 
 int main(int argc, char *argv[])
