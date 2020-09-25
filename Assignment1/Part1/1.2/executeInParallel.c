@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #define MX_SZ 100
 #define CM_SZ 50
+#define MX_BF_SZ 2049
 int execute_in_parallel(char *infile, char *outfile)
 {
 	//! path handling
@@ -29,22 +30,26 @@ int execute_in_parallel(char *infile, char *outfile)
 	}
 	//! path ends
 	//! get commands
-	FILE* fp = fopen(infile, "r");
-	if(!fp){
+	int infd = open(infile, O_RDONLY);
+	if(infd < 0){
 		perror("error opening input file");
 		exit(-1);
 	}
 	char *cmds[CM_SZ];
 	int ncmd =0;
-	char str[MX_SZ];
-	while(fgets(str, MX_SZ, fp)){
-		int len = strlen(str);
-		str[len-1] = '\0';
-		cmds[ncmd] = (char*)malloc((len+1)*sizeof(char));
-		strcpy(cmds[ncmd], str);
-		ncmd++;
+	char str[MX_BF_SZ];
+	if(read(infd, str, 2049) < 0){
+		perror("Can't read inputs");
+		exit(-1);
 	}
-
+	char* temp_cmd = strtok(str, "\n");
+	while(temp_cmd!=NULL){
+		int len = strlen(temp_cmd);
+		cmds[ncmd] = (char*)malloc((len+1)*sizeof(char));
+		strcpy(cmds[ncmd], temp_cmd);
+		ncmd++;
+		temp_cmd = strtok(NULL,"\n");
+	}
 	//! end scanning commands
 	pid_t pid = getpid();
 	pid_t cpid;
@@ -96,20 +101,25 @@ int execute_in_parallel(char *infile, char *outfile)
 		}
 	}
 	wait(NULL);
+	int status =0;
 	for(int i=0;i<ncmd;i++){
 		char buff[4096];
-		ssize_t buffsz = read(pfd[i][0] , buff,4096);
-		if(buffsz < 0 ){
-			perror("Some child processes didn't go well");
-			exit(-1);
-		}
-		buff[buffsz] = '\0';
-		if(write(outfd, buff , buffsz) < 0){
-			perror("Can't write to output file");
-			exit(-1);
-		}
+		ssize_t buffsz;
+		do{
+			buffsz = read(pfd[i][0] , buff,4096);
+			if(buffsz < 0 ){
+				perror("Some child processes didn't go well");
+				exit(-1);
+			}
+			buff[buffsz] = '\0';
+			if(!status)status = strcmp("UNABLE TO EXECUTE\n", buff)==0?-1:0;
+			if(write(outfd, buff , buffsz) < 0){
+				perror("Can't write to output file");
+				exit(-1);
+			}
+		}while(buffsz >= 4096);
 	}
-	return 0;
+	return status;
 }
 
 int main(int argc, char *argv[])
