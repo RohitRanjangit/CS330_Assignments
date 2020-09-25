@@ -12,11 +12,9 @@ int execute_in_parallel(char *infile, char *outfile)
 {
 	//! path handling
 	char* paths = getenv("CS330_PATH");
-	// printf("%s\n",paths);
 	if(!paths){
 		exit(-1);
 	}
-	// path handling ends
 	//! get commands
 	FILE* fp = fopen(infile, "r");
 	if(!fp){
@@ -35,18 +33,14 @@ int execute_in_parallel(char *infile, char *outfile)
 	}
 	//! end scanning commands
 	pid_t cpid, pid = getpid();
-	printf("parent process id: %d\n",pid);
 	int outfd = open(outfile, O_WRONLY | O_CREAT);
 	if(outfd <0){
 		perror("can't create or open output file");
 		exit(-1);
 	}
 	int pfd[ncmd][2];
-	printf("%d\n", ncmd);
 	for(int i=0;i<ncmd && (pid == getpid());i++){
-		printf("%d\n",getpid());
 		char*cmd = cmds[i];
-		// printf("%s\n",cmd);
 		if(pipe(pfd[i]) < 0){
 			perror("pipe can't be processed");
 			exit(-1);
@@ -56,58 +50,49 @@ int execute_in_parallel(char *infile, char *outfile)
         int narg =0;
         char *arg = strtok(cmd," ");
         while(arg!=NULL){
-                argv[narg] = (char*)malloc(((int)strlen(arg) +1)*sizeof(char));
-                argv[narg] = arg;
-                arg = strtok(NULL," ");
-                narg++;
+			argv[narg] = (char*)malloc(((int)strlen(arg) +1)*sizeof(char));
+			argv[narg] = arg;
+			arg = strtok(NULL," ");
+			narg++;
         }
         argv[narg] = NULL;
-		// argv[] done
-		char paths_temp[128];
-		strcpy(paths_temp, paths);
-		char*token = strtok(paths_temp,":");
-		while(token!= NULL){
-			printf("%s %s\n",cmd,token);
-			char tok[(int)strlen(token)+1];
-			strcpy(tok,token);
-			strcat(tok,"/");
-			strcat(tok,argv[0]);
-			cpid = fork();
-			if(cpid <0 ){
-				perror("Fork can't be processed");
-				exit(-1);
-			}
-			if(!cpid){
-				if(dup2(pfd[i][1], 1) <0){
-					perror("can't process dup2");
-					exit(-1);
-				}
-				if(execv(tok,argv)){
-						//perror("execv can't be processed");
-						exit(-1);
-				}else{
-					break;
-				}
-				exit(-1);
-			}
-			token = strtok(NULL,":");
-		}
-	}
-	int status;
-	wait(&status);
-	for(int i=0;i<2;i++){
-		char buff[4096];
-		ssize_t buffsz = read(pfd[i][0] , buff,4096);
-		if(buffsz < 0 ){
-			perror("Some child processes didn't go well");
+		//! argv[] done
+		cpid = fork();
+		if(cpid <0 ){
+			perror("Fork can't be processed");
 			exit(-1);
 		}
-		buff[buffsz] = '\0';
-		if(write(outfd, buff , buffsz) < 0){
-			perror("Can't write to output file");
-			exit(-1);
+		if(!cpid){
+			char*token = strtok(paths,":");
+			if(dup2(pfd[i][1], 1) <0){
+				perror("can't process dup2");
+				exit(-1);
+			}
+			while(token!= NULL){
+				char tok[(int)strlen(token)+1];
+				strcpy(tok,token);
+				strcat(tok,"/");
+				strcat(tok,argv[0]);
+				execv(tok,argv);
+				token = strtok(NULL,":");
+			}
 		}
 	}
+	// int status;
+	// wait(&status);
+	// for(int i=0;i<2;i++){
+	// 	char buff[4096];
+	// 	ssize_t buffsz = read(pfd[i][0] , buff,4096);
+	// 	if(buffsz < 0 ){
+	// 		perror("Some child processes didn't go well");
+	// 		exit(-1);
+	// 	}
+	// 	buff[buffsz] = '\0';
+	// 	if(write(outfd, buff , buffsz) < 0){
+	// 		perror("Can't write to output file");
+	// 		exit(-1);
+	// 	}
+	// }
 	return 0;
 }
 
