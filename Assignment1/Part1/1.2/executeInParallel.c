@@ -34,8 +34,8 @@ int execute_in_parallel(char *infile, char *outfile)
 		ncmd++;
 	}
 	//! end scanning commands
-	int outfd = open(outfile, O_WRONLY | O_CREAT);
 	pid_t cpid, pid = getpid();
+	int outfd = open(outfile, O_WRONLY | O_CREAT);
 	if(outfd <0){
 		perror("can't create or open output file");
 		exit(-1);
@@ -71,19 +71,31 @@ int execute_in_parallel(char *infile, char *outfile)
 				exit(-1);
 			}
 			if(!cpid){
-				close(1);
-				if(dup2(pfd[1], 1) <0){
+				strcat(tok,argv[0]);
+				if(dup2(pfd[i][1], 1) <0){
 					perror("can't process dup2");
 					exit(-1);
 				}
-				strcat(tok,argv[0]);
 				if(execv(tok,argv)){
-						// perror("execv can't be processed");
+						//perror("execv can't be processed");
 						exit(-1);
 				}
 				exit(-1);
 			}
 			token = strtok(NULL,":");
+		}
+	}
+	wait(NULL);
+	for(int i=0;i<ncmd;i++){
+		char buff[4096];
+		ssize_t buffsz = read(pfd[i][0] , buff,4096);
+		if(buffsz < 0 ){
+			perror("Some child processes didn't go well");
+			exit(-1);
+		}
+		if(write(outfd, buff , buffsz) < 0){
+			perror("Can't write to output file");
+			exit(-1);
 		}
 	}
 	return 0;
