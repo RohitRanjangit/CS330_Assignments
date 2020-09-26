@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
 	}
 	int score1 =0 , score2 =0;
 	pid_t pid, cpid1, cpid2;
-	pid = getpid();
+	// pid = getpid();
 	int std1[2][2], std2[2][2];
 	for(int i=0;i<2;i++){
 		if(pipe(std1[i]) < 0){

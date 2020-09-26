@@ -51,7 +51,7 @@ int execute_in_parallel(char *infile, char *outfile)
 		temp_cmd = strtok(NULL,"\n");
 	}
 	//! end scanning commands
-	pid_t pid = getpid();
+	pid_t pid;
 	pid_t cpid;
 	int outfd = open(outfile, O_WRONLY | O_CREAT);
 	if(outfd <0){
@@ -59,7 +59,7 @@ int execute_in_parallel(char *infile, char *outfile)
 		exit(-1);
 	}
 	int pfd[ncmd][2];
-	for(int i=0;i<ncmd && (pid == getpid());i++){
+	for(int i=0;i<ncmd;i++){
 		char*cmd = cmds[i];
 		if(pipe(pfd[i]) < 0){
 			perror("pipe can't be processed");

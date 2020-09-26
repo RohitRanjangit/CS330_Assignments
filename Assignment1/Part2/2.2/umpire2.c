@@ -23,8 +23,8 @@ int getWalkOver(int numPlayers); // Returns a number between [1, numPlayers]
 
 int main(int argc, char *argv[])
 {
-	if(argc <=1 || argc == 3){
-		perror("expected 2 or greater than 3 arguments");
+	if(argc <=1 || argc == 3 || argc >4){
+		perror("Invalid number of arguments");
 		exit(-1);
 	}
 	int nround = 10;
@@ -59,7 +59,6 @@ int main(int argc, char *argv[])
 	char executables[nplayers][101];
 	for(int i=0;i<nplayers;i++){
 		int npos =0;
-		
 		do{
 			if((rdcnt = read(infd , &cchar, 1)) < 0){
 				perror("can't read input files");
@@ -93,11 +92,11 @@ int main(int argc, char *argv[])
 			close(std_in[i][1]);
 			close(std_out[i][0]);
 			if(dup2(std_in[i][0],0) < 0){
-				perror("error in dup");
+				perror("error in dup2");
 				exit(-1);
 			}
 			if(dup2(std_out[i][1],1) < 0){
-				perror("error in dup");
+				perror("error in dup2");
 				exit(-1);
 			}
 			char* paramList[] = {executables[i], NULL};
@@ -172,7 +171,10 @@ int main(int argc, char *argv[])
 		}
 	}
 	for(int i=0;i<nplayers;i++){
-		if(active[i])printf("p%d", i);
+		if(active[i]){
+			printf("p%d", i);
+			break;
+		}
 	}
 	return 0;
 }
